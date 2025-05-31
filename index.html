@@ -1,30 +1,39 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Cortex Excel Web</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      padding: 20px;
-    }
-    table, th, td {
-      border: 1px solid #ccc;
-      border-collapse: collapse;
-      padding: 5px;
-    }
-  </style>
-</head>
-<body>
-  <h1>Excelcito Web</h1>
-  <input type="file" id="fileInput" accept=".xlsx">
-  <br><br>
-  <label for="caracteres">Caracteres a eliminar:</label>
-  <input type="text" id="caracteres" placeholder="Ej: #$%">
-  <button onclick="exportarSinCaracteres()">Exportar Excel limpio</button>
-  <div id="tabla"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="script.js"></script>
+<head>
+    <meta charset="UTF-8">
+    <title>Cortex Excel Web</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+        }
+
+        table,
+        th,
+        td {
+            border: 1px solid #ccc;
+            border-collapse: collapse;
+            padding: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Excelcito Web</h1>
+    <input type="file" id="fileInput" accept=".xlsx">
+    <br><br>
+    <label for="cabeceras">Cabeceras a unificar (separadas por coma):</label>
+    <input type="text" id="cabeceras" placeholder="Ej: codigo,descripcion">
+    <br><br>
+    <label for="caracteres">Caracteres a eliminar:</label>
+    <input type="text" id="caracteres" placeholder="Ej: #$%">
+    <button onclick="exportarSinCaracteres()">Exportar Excel limpio</button>
+    <div id="tabla"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="script.js"></script>
 </body>
+
 </html>
