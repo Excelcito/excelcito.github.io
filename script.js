@@ -166,6 +166,13 @@ function encontrarFilaCabecera(datos, cabecerasDeseadas) {
 function rellenarCeldasCombinadas(sheet) {
   const merges = sheet['!merges'];
   if (!merges || !merges.length) return;
+  let range = sheet['!ref']
+    ? XLSX.utils.decode_range(sheet['!ref'])
+    : {
+        s: { r: merges[0].s.r, c: merges[0].s.c },
+        e: { r: merges[0].e.r, c: merges[0].e.c }
+      };
+
   merges.forEach(m => {
     const startAddr = XLSX.utils.encode_cell({ r: m.s.r, c: m.s.c });
     const startCell = sheet[startAddr];
@@ -174,9 +181,18 @@ function rellenarCeldasCombinadas(sheet) {
       for (let C = m.s.c; C <= m.e.c; ++C) {
         const addr = XLSX.utils.encode_cell({ r: R, c: C });
         if (addr === startAddr) continue;
-        // copia tipo y valor de la celda inicial
-        sheet[addr] = { t: startCell.t, v: startCell.v };
+        if (!sheet[addr] || sheet[addr].v === undefined) {
+          // duplica completamente la celda para que sheet_to_json vea el contenido
+          sheet[addr] = { ...startCell };
+        }
       }
     }
+
+    if (m.s.r < range.s.r) range.s.r = m.s.r;
+    if (m.s.c < range.s.c) range.s.c = m.s.c;
+    if (m.e.r > range.e.r) range.e.r = m.e.r;
+    if (m.e.c > range.e.c) range.e.c = m.e.c;
   });
+
+  sheet['!ref'] = XLSX.utils.encode_range(range);
 }
