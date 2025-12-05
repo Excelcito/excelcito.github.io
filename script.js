@@ -8,8 +8,11 @@ document.getElementById('fileInput').addEventListener('change', function (e) {
     const data = new Uint8Array(e.target.result);
     const workbook = XLSX.read(data, { type: 'array' });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    datosExcel = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
+    rellenarCeldasCombinadas(sheet);
+    
+    const datos = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false });
+    datosExcel = datos;
+    
     mostrarTabla(datosExcel);
   };
 
@@ -48,7 +51,7 @@ function exportarSinCaracteres() {
   const chars = document.getElementById('caracteres').value;
   const cabecerasInput = document.getElementById('cabeceras') ? document.getElementById('cabeceras').value : '';
 
-  // Si no hay cabeceras, comportamiento original
+  // Si no hay cabeceras, comportamiento original sobre la primera hoja visible
   if (!cabecerasInput) {
     if (!datosExcel) {
       alert('Primero subí un archivo Excel.');
@@ -80,10 +83,14 @@ function exportarSinCaracteres() {
 
     workbook.SheetNames.forEach(sheetName => {
       const sheet = workbook.Sheets[sheetName];
-      const datos = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+      rellenarCeldasCombinadas(sheet);
+      
+      const datos = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false });
       if (!datos.length) return;
 
-      const headers = datos[0].map(normalizar);
+      // Buscar la fila de cabeceras real (la que maximiza coincidencias)
+      const headerRowIndex = encontrarFilaCabecera(datos, cabecerasDeseadas);
+      const headers = datos[headerRowIndex].map(normalizar);
 
       // Detectar máximo sufijo numérico
       let maxGrupo = 1;
@@ -96,19 +103,18 @@ function exportarSinCaracteres() {
         });
       });
 
-      // Para cada fila de datos (excepto cabecera)
-      for (let i = 1; i < datos.length; i++) {
+      // Para cada fila de datos (desde la fila siguiente a cabecera)
+      for (let i = headerRowIndex + 1; i < datos.length; i++) {
         const fila = datos[i];
-        // Para cada grupo posible
-        for (let grupo = 0; grupo <= maxGrupo; grupo++) {
-          let sufijo = (grupo === 0) ? '' : ' ' + grupo;
-          // Buscar los índices de las columnas de este grupo
+        // Para cada grupo posible (grupo 1 = sin número, grupo 2 = " 2", ...)
+        for (let grupo = 1; grupo <= maxGrupo; grupo++) {
+          let sufijo = (grupo === 1) ? '' : ' ' + grupo;
+          // Buscar los índices de las columnas de este grupo (solo coincidencias exactas con sufijo)
           let indices = cabecerasDeseadas.map(cab => {
-
-            let idx = headers.findIndex(h => h === normalizar(cab + sufijo));
-            return idx;
+            return headers.findIndex(h => h === normalizar(cab + sufijo));
           });
-          // Solo agregar si al menos una columna de este grupo tiene dato
+
+          // Solo agregar si al menos una columna de este grupo tiene dato en esta fila
           const nuevaFila = indices.map(idx => (idx !== -1 && fila[idx] !== undefined) ? fila[idx] : '');
           if (nuevaFila.some(v => v !== '' && v !== undefined)) {
             filasUnificadas.push(nuevaFila);
@@ -134,4 +140,43 @@ function exportarSinCaracteres() {
 // Normaliza texto para comparar (minúsculas y sin espacios extra)
 function normalizar(texto) {
   return (texto || '').toString().trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+// Encuentra la fila de cabecera que maximiza coincidencias con las cabecerasDeseadas
+function encontrarFilaCabecera(datos, cabecerasDeseadas) {
+  let mejorFila = 0;
+  let maxMatches = 0;
+  const maxSearch = Math.min(20, datos.length); // buscar hasta 20 filas por hoja
+  for (let r = 0; r < maxSearch; r++) {
+    const row = datos[r] || [];
+    const normalizedRow = row.map(normalizar);
+    let matches = 0;
+    cabecerasDeseadas.forEach(cab => {
+      if (normalizedRow.includes(cab)) matches++;
+    });
+    if (matches > maxMatches) {
+      maxMatches = matches;
+      mejorFila = r;
+    }
+  }
+  return maxMatches > 0 ? mejorFila : 0;
+}
+
+// Rellena en la hoja las celdas vacías que forman parte de rangos combinados
+function rellenarCeldasCombinadas(sheet) {
+  const merges = sheet['!merges'];
+  if (!merges || !merges.length) return;
+  merges.forEach(m => {
+    const startAddr = XLSX.utils.encode_cell({ r: m.s.r, c: m.s.c });
+    const startCell = sheet[startAddr];
+    if (!startCell) return;
+    for (let R = m.s.r; R <= m.e.r; ++R) {
+      for (let C = m.s.c; C <= m.e.c; ++C) {
+        const addr = XLSX.utils.encode_cell({ r: R, c: C });
+        if (addr === startAddr) continue;
+        // copia tipo y valor de la celda inicial
+        sheet[addr] = { t: startCell.t, v: startCell.v };
+      }
+    }
+  });
 }
