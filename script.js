@@ -21,10 +21,14 @@ document.getElementById('fileInput').addEventListener('change', function (e) {
 
 function mostrarTabla(data) {
   const tabla = document.getElementById('tabla');
-  tabla.innerHTML = '<h2>Contenido del Excel</h2>';
+  const LIMITE_FILAS = 10000;
+  const truncado = Array.isArray(data) && data.length > LIMITE_FILAS;
+  const filasVisibles = Array.isArray(data) ? data.slice(0, LIMITE_FILAS) : [];
+
+  tabla.innerHTML = `<h2>Contenido del Excel</h2>${truncado ? '<p>Mostrando solo las primeras 10.000 filas para evitar bloqueos.</p>' : ''}`;
   const table = document.createElement('table');
 
-  data.forEach(row => {
+  filasVisibles.forEach(row => {
     const tr = document.createElement('tr');
     row.forEach(cell => {
       const td = document.createElement('td');
@@ -135,6 +139,37 @@ function exportarSinCaracteres() {
   };
 
   reader.readAsArrayBuffer(file);
+}
+
+function dividirEnHojas() {
+  if (!datosExcel || !datosExcel.length) {
+    alert('Primero subí un archivo Excel.');
+    return;
+  }
+
+  const filasInput = document.getElementById('filasPorHoja');
+  const filasPorHoja = filasInput ? parseInt(filasInput.value, 10) : NaN;
+
+  if (!filasPorHoja || filasPorHoja <= 0) {
+    alert('Ingresá una cantidad válida de filas por hoja.');
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+  let inicio = 0;
+  let indiceHoja = 1;
+
+  while (inicio < datosExcel.length) {
+    const chunk = datosExcel.slice(inicio, inicio + filasPorHoja);
+    if (!chunk.length) break;
+    const nombreHoja = `Hoja ${indiceHoja}`;
+    const ws = XLSX.utils.aoa_to_sheet(chunk);
+    XLSX.utils.book_append_sheet(wb, ws, nombreHoja);
+    inicio += filasPorHoja;
+    indiceHoja++;
+  }
+
+  XLSX.writeFile(wb, 'dividido.xlsx');
 }
 
 // Normaliza texto para comparar (minúsculas y sin espacios extra)
